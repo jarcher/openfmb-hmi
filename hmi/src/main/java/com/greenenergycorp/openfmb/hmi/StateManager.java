@@ -41,13 +41,13 @@ public class StateManager implements CircuitStateObserver {
     }
 
     @Override
-    public void updateRecloserPower(String logicalDeviceId, double value) {
+    public void updateRecloserReadings(String logicalDeviceId, double power, double voltage, double frequency) {
         synchronized (mutex) {
             final RecloserStatus current = recloserStatuses.get(logicalDeviceId);
             if (current != null) {
-                recloserStatuses.put(logicalDeviceId, new RecloserStatus(value, current.isClosed()));
+                recloserStatuses.put(logicalDeviceId, new RecloserStatus(power, voltage, frequency, current.isClosed()));
             } else {
-                recloserStatuses.put(logicalDeviceId, new RecloserStatus(value, true));
+                recloserStatuses.put(logicalDeviceId, new RecloserStatus(power, voltage, frequency, true));
             }
         }
     }
@@ -57,21 +57,20 @@ public class StateManager implements CircuitStateObserver {
         synchronized (mutex) {
             final RecloserStatus current = recloserStatuses.get(logicalDeviceId);
             if (current != null) {
-                recloserStatuses.put(logicalDeviceId, new RecloserStatus(current.getPower(), isClosed));
+                recloserStatuses.put(logicalDeviceId, new RecloserStatus(current.getPower(), current.getVoltage(), current.getFrequency(), isClosed));
             } else {
-                recloserStatuses.put(logicalDeviceId, new RecloserStatus(0.0, isClosed));
+                recloserStatuses.put(logicalDeviceId, new RecloserStatus(0.0, 0.0, 0.0, isClosed));
             }
         }
     }
 
-    @Override
-    public void updateBatteryPower(String logicalDeviceId, double value) {
+    public void updateBatteryReadings(String logicalDeviceId, double power, double voltage, double frequency) {
         synchronized (mutex) {
             final BatteryStatus current = batteryStatuses.get(logicalDeviceId);
             if (current != null) {
-                batteryStatuses.put(logicalDeviceId, new BatteryStatus(value, current.isCharging(), current.getSoc(), current.getMode()));
+                batteryStatuses.put(logicalDeviceId, new BatteryStatus(power, voltage, frequency, current.isCharging(), current.getSoc(), current.getMode()));
             } else {
-                batteryStatuses.put(logicalDeviceId, new BatteryStatus(value, false, 50.0, "unknown"));
+                batteryStatuses.put(logicalDeviceId, new BatteryStatus(power, voltage, frequency, false, 50.0, "unknown"));
             }
         }
     }
@@ -81,9 +80,9 @@ public class StateManager implements CircuitStateObserver {
         synchronized (mutex) {
             final BatteryStatus current = batteryStatuses.get(logicalDeviceId);
             if (current != null) {
-                batteryStatuses.put(logicalDeviceId, new BatteryStatus(current.getPower(), isCharging, soc, mode));
+                batteryStatuses.put(logicalDeviceId, new BatteryStatus(current.getPower(), current.getVoltage(), current.getFrequency(), isCharging, soc, mode));
             } else {
-                batteryStatuses.put(logicalDeviceId, new BatteryStatus(0.0, isCharging, soc, mode));
+                batteryStatuses.put(logicalDeviceId, new BatteryStatus(0.0, 0.0, 0.0, isCharging, soc, mode));
             }
         }
     }
@@ -141,10 +140,14 @@ public class StateManager implements CircuitStateObserver {
 
     public static class RecloserStatus extends Status {
         private final double power;
+        private final double voltage;
+        private final double frequency;
         private final boolean isClosed;
 
-        public RecloserStatus(double power, boolean isClosed) {
+        public RecloserStatus(double power, double voltage, double frequency, boolean isClosed) {
             this.power = power;
+            this.voltage = voltage;
+            this.frequency = frequency;
             this.isClosed = isClosed;
         }
 
@@ -154,6 +157,14 @@ public class StateManager implements CircuitStateObserver {
 
         public boolean isClosed() {
             return isClosed;
+        }
+
+        public double getVoltage() {
+            return voltage;
+        }
+
+        public double getFrequency() {
+            return frequency;
         }
 
         @Override
@@ -167,12 +178,16 @@ public class StateManager implements CircuitStateObserver {
 
     public static class BatteryStatus extends Status {
         private final double power;
+        private final double voltage;
+        private final double frequency;
         private final boolean isCharging;
         private final double soc;
         private final String mode;
 
-        public BatteryStatus(double power, boolean isCharging, double soc, String mode) {
+        public BatteryStatus(double power, double voltage, double frequency, boolean isCharging, double soc, String mode) {
             this.power = power;
+            this.voltage = voltage;
+            this.frequency = frequency;
             this.isCharging = isCharging;
             this.soc = soc;
             this.mode = mode;
@@ -180,6 +195,14 @@ public class StateManager implements CircuitStateObserver {
 
         public double getPower() {
             return power;
+        }
+
+        public double getVoltage() {
+            return voltage;
+        }
+
+        public double getFrequency() {
+            return frequency;
         }
 
         public boolean isCharging() {

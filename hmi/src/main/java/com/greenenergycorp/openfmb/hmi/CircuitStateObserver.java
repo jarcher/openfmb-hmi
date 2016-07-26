@@ -20,11 +20,11 @@ package com.greenenergycorp.openfmb.hmi;
 
 public interface CircuitStateObserver {
 
-    void updateRecloserPower(String logicalDeviceId, double value);
+    void updateRecloserReadings(String logicalDeviceId, double power, double voltage, double frequency);
 
     void updateRecloserStatus(String logicalDeviceId, boolean isClosed);
 
-    void updateBatteryPower(String logicalDeviceId, double value);
+    void updateBatteryReadings(String logicalDeviceId, double power, double voltage, double frequency);
 
     void updateBatteryStatus(String logicalDeviceId, boolean isCharging, double soc, String mode);
 

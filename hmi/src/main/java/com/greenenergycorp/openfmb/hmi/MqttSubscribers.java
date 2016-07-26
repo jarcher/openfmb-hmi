@@ -46,10 +46,22 @@ public class MqttSubscribers {
 
                     final String logicalDeviceId = profile.getLogicalDeviceID();
 
+                    Double power = null;
+                    double voltage = 0.0;
+                    double frequency = 0.0;
                     for (final Reading r: profile.getReadings()) {
                         if (r.getReadingType().getUnit() == UnitSymbolKind.W) {
-                            final double value = (double) r.getValue();
-                            observer.updateRecloserPower(logicalDeviceId, value);
+                            power = (double)r.getValue();
+                        }
+                        if (r.getReadingType().getUnit() == UnitSymbolKind.V) {
+                            voltage = (double)r.getValue();
+                        }
+                        if (r.getReadingType().getUnit() == UnitSymbolKind.HZ) {
+                            frequency = (double)r.getValue();
+                        }
+
+                        if (power != null){
+                            observer.updateRecloserReadings(logicalDeviceId, power, voltage, frequency);
                         }
                     }
                 }
@@ -110,10 +122,22 @@ public class MqttSubscribers {
 
                     final String logicalDeviceId = profile.getLogicalDeviceID();
 
+                    Double power = null;
+                    double voltage = 0.0;
+                    double frequency = 0.0;
                     for (final Reading r: profile.getReadings()) {
                         if (r.getReadingType().getUnit() == UnitSymbolKind.W) {
-                            final double value = (double) r.getValue();
-                            observer.updateBatteryPower(logicalDeviceId, value);
+                            power = (double)r.getValue();
+                        }
+                        if (r.getReadingType().getUnit() == UnitSymbolKind.V) {
+                            voltage = (double)r.getValue();
+                        }
+                        if (r.getReadingType().getUnit() == UnitSymbolKind.HZ) {
+                            frequency = (double)r.getValue();
+                        }
+
+                        if (power != null){
+                            observer.updateBatteryReadings(logicalDeviceId, power, voltage, frequency);
                         }
                     }
                 }
