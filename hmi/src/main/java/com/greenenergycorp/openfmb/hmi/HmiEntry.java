@@ -70,14 +70,14 @@ public class HmiEntry {
         final String resourceReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.ResourceReadingProfile");
         final String solarReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.SolarReadingProfile");
 
+        final long timeoutMs = PropertyUtil.propLongOrThrow(openfmbProps, "config.timeoutMs");
+
         final OpenFmbXmlMarshaller openFmbXmlMarshaller = new OpenFmbXmlMarshaller();
 
         final ActorSystem system = ActorSystem.create();
 
         final Http http = Http.get(system);
         final ActorMaterializer materializer = ActorMaterializer.create(system);
-
-        final long timeoutMs = 7000;
 
         final StateManager stateManager = new StateManager(timeoutMs);
 
