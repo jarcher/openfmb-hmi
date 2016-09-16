@@ -18,8 +18,8 @@
  */
 package com.greenenergycorp.openfmb.hmi;
 
+import com.greenenergycorp.openfmb.mapping.adapter.MessageObserver;
 import com.greenenergycorp.openfmb.mapping.data.xml.OpenFmbXmlMarshaller;
-import com.greenenergycorp.openfmb.mapping.mqtt.MqttObserver;
 import com.greenenergycorp.openfmb.simulator.DeviceId;
 import com.greenenergycorp.openfmb.xml.BatteryControlProfile;
 import com.greenenergycorp.openfmb.xml.RecloserControlProfile;
@@ -34,10 +34,10 @@ public class ControlIssuer {
     private final String baseRecloserTopic;
     private final DeviceId batteryId;
     private final String baseBatteryTopic;
-    private final MqttObserver observer;
+    private final MessageObserver observer;
     private final OpenFmbXmlMarshaller marshaller;
 
-    public ControlIssuer(DeviceId recloserId, String baseRecloserTopic, DeviceId batteryId, String baseBatteryTopic, MqttObserver observer, OpenFmbXmlMarshaller marshaller) {
+    public ControlIssuer(DeviceId recloserId, String baseRecloserTopic, DeviceId batteryId, String baseBatteryTopic, MessageObserver observer, OpenFmbXmlMarshaller marshaller) {
         this.recloserId = recloserId;
         this.baseRecloserTopic = baseRecloserTopic;
         this.batteryId = batteryId;
@@ -59,7 +59,7 @@ public class ControlIssuer {
             final RecloserControlProfile profile = XmlModel.buildRecloserControlAction(recloserId, action);
             final byte[] bytes = marshaller.marshal(profile);
             if (bytes != null) {
-                observer.publish(bytes, baseRecloserTopic + "/" + recloserId.getLogicalDeviceId());
+                observer.publish(bytes, baseRecloserTopic, recloserId.getLogicalDeviceId());
             } else {
                 logger.warn("Null object being published");
             }
@@ -74,7 +74,7 @@ public class ControlIssuer {
             final BatteryControlProfile profile = XmlModel.buildBatteryControlPowerSetpoint(batteryId, value);
             final byte[] bytes = marshaller.marshal(profile);
             if (bytes != null) {
-                observer.publish(bytes, baseBatteryTopic + "/" + batteryId.getLogicalDeviceId());
+                observer.publish(bytes, baseBatteryTopic, batteryId.getLogicalDeviceId());
             } else {
                 logger.warn("Null object being published");
             }
@@ -90,7 +90,7 @@ public class ControlIssuer {
             final BatteryControlProfile profile = XmlModel.buildBatteryControlModeSetpoint(batteryId, mode);
             final byte[] bytes = marshaller.marshal(profile);
             if (bytes != null) {
-                observer.publish(bytes, baseBatteryTopic + "/" + batteryId.getLogicalDeviceId());
+                observer.publish(bytes, baseBatteryTopic, batteryId.getLogicalDeviceId());
             } else {
                 logger.warn("Null object being published");
             }

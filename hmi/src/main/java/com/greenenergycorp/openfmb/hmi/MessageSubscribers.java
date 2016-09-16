@@ -24,7 +24,7 @@ import com.greenenergycorp.openfmb.xml.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MqttSubscribers {
+public class MessageSubscribers {
 
 
     public static class RecloserReadSubscriber implements PayloadObserver {

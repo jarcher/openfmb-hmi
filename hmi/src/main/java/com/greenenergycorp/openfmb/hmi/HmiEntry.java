@@ -27,14 +27,14 @@ import akka.http.javadsl.model.HttpRequest;
 import akka.http.javadsl.model.HttpResponse;
 import akka.stream.ActorMaterializer;
 import akka.stream.javadsl.Flow;
+import com.greenenergycorp.openfmb.mapping.adapter.MessageObserver;
 import com.greenenergycorp.openfmb.mapping.adapter.PayloadObserver;
 import com.greenenergycorp.openfmb.mapping.data.xml.OpenFmbXmlMarshaller;
-import com.greenenergycorp.openfmb.mapping.mqtt.MqttAdapterManager;
-import com.greenenergycorp.openfmb.mapping.mqtt.MqttConfiguration;
-import com.greenenergycorp.openfmb.mapping.mqtt.MqttObserver;
+import com.greenenergycorp.openfmb.mapping.mqtt.*;
 import com.greenenergycorp.openfmb.simulator.DeviceId;
 import com.greenenergycorp.openfmb.simulator.PropertyUtil;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -47,7 +47,85 @@ public class HmiEntry {
 
         final String openfmbConfigPath = System.getProperty("config.hmi.path", "hmi.properties");
         final Properties openfmbProps = PropertyUtil.optionallyLoad(openfmbConfigPath, System.getProperties());
-        
+
+        final long timeoutMs = PropertyUtil.propLongOrThrow(openfmbProps, "config.timeoutMs");
+
+        final OpenFmbXmlMarshaller openFmbXmlMarshaller = new OpenFmbXmlMarshaller();
+
+        final StateManager stateManager = new StateManager(timeoutMs);
+
+        final String mqttConfigPath = System.getProperty("config.mqtt.path", "mqtt.properties");
+
+        final MqttConfiguration mqttConfiguration = MqttConfiguration.fromFile(mqttConfigPath);
+
+        final MqttAdapterManager mqttAdapterManager = new MqttAdapterManager(mqttConfiguration, 0);
+
+        final MqttObserver mqttObserver = mqttAdapterManager.getMessageObserver();
+
+        final MessageObserver messageObserver = new MessageObserverAdapter(mqttObserver, new SimpleTopicMapping());
+
+        final ControlIssuer controlIssuer = buildControlIssuer(openfmbProps, messageObserver, openFmbXmlMarshaller);
+
+        final Thread mqttThread = new Thread(new Runnable() {
+            public void run() {
+                mqttAdapterManager.run();
+            }
+        }, "mqtt publisher");
+
+        final Map<String, PayloadObserver> controlHandlerMap = buildSubscriberMap(stateManager, openFmbXmlMarshaller, openfmbProps);
+
+        mqttAdapterManager.subscribe(controlHandlerMap);
+
+        mqttThread.start();
+
+        runServer(controlIssuer, stateManager);
+
+    }
+
+    public static void runServer(final ControlIssuer controlIssuer, final StateManager stateManager) throws IOException {
+        final HmiServer app = new HmiServer(controlIssuer, stateManager);
+
+        final ActorSystem system = ActorSystem.create();
+
+        final Http http = Http.get(system);
+        final ActorMaterializer materializer = ActorMaterializer.create(system);
+
+        final Flow<HttpRequest, HttpResponse, NotUsed> routeFlow = app.createRoute().flow(system, materializer);
+        final CompletionStage<ServerBinding> binding = http.bindAndHandle(routeFlow, ConnectHttp.toHost("localhost", 8080), materializer);
+
+        System.out.println("ctrl-c to exit");
+        System.in.read();
+
+        binding.thenCompose(ServerBinding::unbind)
+                .thenAccept(unbound -> system.terminate());
+    }
+
+    public static Map<String, PayloadObserver> buildSubscriberMap(
+            final StateManager stateManager,
+            final OpenFmbXmlMarshaller openFmbXmlMarshaller,
+            final Properties openfmbProps) {
+
+        final String recloserEventTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.RecloserEventProfile");
+        final String recloserReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.RecloserReadingProfile");
+
+        final String batteryReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.BatteryReadingProfile");
+        final String batteryEventTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.BatteryEventProfile");
+        final String resourceReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.ResourceReadingProfile");
+        final String solarReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.SolarReadingProfile");
+
+        final Map<String, PayloadObserver> subscriberMap = new HashMap<String, PayloadObserver>();
+        subscriberMap.put(recloserReadTopic + "/#", new MessageSubscribers.RecloserReadSubscriber(stateManager, openFmbXmlMarshaller));
+        subscriberMap.put(recloserEventTopic + "/#", new MessageSubscribers.RecloserEventSubscriber(stateManager, openFmbXmlMarshaller));
+        subscriberMap.put(batteryReadTopic + "/#", new MessageSubscribers.BatteryReadSubscriber(stateManager, openFmbXmlMarshaller));
+        subscriberMap.put(batteryEventTopic + "/#", new MessageSubscribers.BatteryEventSubscriber(stateManager, openFmbXmlMarshaller));
+        subscriberMap.put(solarReadTopic + "/#", new MessageSubscribers.SolarReadSubscriber(stateManager, openFmbXmlMarshaller));
+        subscriberMap.put(resourceReadTopic + "/#", new MessageSubscribers.ResourceReadSubscriber(stateManager, openFmbXmlMarshaller));
+
+        return subscriberMap;
+    }
+
+    public static ControlIssuer buildControlIssuer(final Properties openfmbProps, final MessageObserver messageObserver, final OpenFmbXmlMarshaller openFmbXmlMarshaller) {
+
         final String recloserLogicalDeviceId = PropertyUtil.propOrThrow(openfmbProps, "device.recloser.logicalDeviceID");
         final String reclosermRid = PropertyUtil.propOrThrow(openfmbProps, "device.recloser.mRID");
         final String recloserName = PropertyUtil.propOrThrow(openfmbProps, "device.recloser.name");
@@ -60,65 +138,10 @@ public class HmiEntry {
         final String batteryDescription = PropertyUtil.propOrThrow(openfmbProps, "device.battery.description");
         final DeviceId batteryDeviceId = new DeviceId(batteryLogicalDeviceId, batterymRid, batteryName, batteryDescription);
 
-        final String recloserEventTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.RecloserEventProfile");
-        final String recloserReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.RecloserReadingProfile");
         final String recloserControlTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.RecloserControlProfile");
 
-        final String batteryReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.BatteryReadingProfile");
-        final String batteryEventTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.BatteryEventProfile");
         final String batteryControlTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.BatteryControlProfile");
-        final String resourceReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.ResourceReadingProfile");
-        final String solarReadTopic = PropertyUtil.propOrThrow(openfmbProps, "topic.SolarReadingProfile");
 
-        final long timeoutMs = PropertyUtil.propLongOrThrow(openfmbProps, "config.timeoutMs");
-
-        final OpenFmbXmlMarshaller openFmbXmlMarshaller = new OpenFmbXmlMarshaller();
-
-        final ActorSystem system = ActorSystem.create();
-
-        final Http http = Http.get(system);
-        final ActorMaterializer materializer = ActorMaterializer.create(system);
-
-        final StateManager stateManager = new StateManager(timeoutMs);
-
-        final String mqttConfigPath = System.getProperty("config.mqtt.path", "mqtt.properties");
-
-        final MqttConfiguration mqttConfiguration = MqttConfiguration.fromFile(mqttConfigPath);
-
-        final MqttAdapterManager mqttAdapterManager = new MqttAdapterManager(mqttConfiguration, 0);
-
-        final MqttObserver mqttObserver = mqttAdapterManager.getMessageObserver();
-
-        final ControlIssuer controlIssuer = new ControlIssuer(recloserDeviceId, recloserControlTopic, batteryDeviceId, batteryControlTopic, mqttObserver, openFmbXmlMarshaller);
-
-        final HmiServer app = new HmiServer(controlIssuer, stateManager);
-
-        final Thread mqttThread = new Thread(new Runnable() {
-            public void run() {
-                mqttAdapterManager.run();
-            }
-        }, "mqtt publisher");
-
-        final Map<String, PayloadObserver> controlHandlerMap = new HashMap<String, PayloadObserver>();
-        controlHandlerMap.put(recloserReadTopic + "/#", new MqttSubscribers.RecloserReadSubscriber(stateManager, openFmbXmlMarshaller));
-        controlHandlerMap.put(recloserEventTopic + "/#", new MqttSubscribers.RecloserEventSubscriber(stateManager, openFmbXmlMarshaller));
-        controlHandlerMap.put(batteryReadTopic + "/#", new MqttSubscribers.BatteryReadSubscriber(stateManager, openFmbXmlMarshaller));
-        controlHandlerMap.put(batteryEventTopic + "/#", new MqttSubscribers.BatteryEventSubscriber(stateManager, openFmbXmlMarshaller));
-        controlHandlerMap.put(solarReadTopic + "/#", new MqttSubscribers.SolarReadSubscriber(stateManager, openFmbXmlMarshaller));
-        controlHandlerMap.put(resourceReadTopic + "/#", new MqttSubscribers.ResourceReadSubscriber(stateManager, openFmbXmlMarshaller));
-
-        mqttAdapterManager.subscribe(controlHandlerMap);
-
-        final Flow<HttpRequest, HttpResponse, NotUsed> routeFlow = app.createRoute().flow(system, materializer);
-        final CompletionStage<ServerBinding> binding = http.bindAndHandle(routeFlow, ConnectHttp.toHost("localhost", 8080), materializer);
-
-        mqttThread.start();
-
-        System.out.println("ctrl-c to exit");
-        System.in.read();
-
-        binding.thenCompose(ServerBinding::unbind)
-                .thenAccept(unbound -> system.terminate());
-
+        return new ControlIssuer(recloserDeviceId, recloserControlTopic, batteryDeviceId, batteryControlTopic, messageObserver, openFmbXmlMarshaller);
     }
 }
