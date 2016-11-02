@@ -2,14 +2,14 @@
 
 # Description
 
-{insert description}
+This is a visualization tool for the dtech-demo.  It subscribes to the MQTT broker for all the topics and generation a web based hmi for the display.  The HMI has logic to sum values and control capabilities. 
 
 # Installing / Getting started
 
-{starting notes} NOTE: This project is used in the Dtech Demo.  Refer to [Wiki](https://github.com/openfmb/dtech-demo-2016/wiki) for information on DTech Demo. 
+  Refer to [Wiki](https://github.com/openfmb/dtech-demo-2016/wiki) for information on DTech Demo. 
 
 ```shell
-java -cp 
+java -jar openfmb-hmi-0.0.5-SNAPSHOT-jar-with-dependencies.jar
 ```
 
 ## Building
@@ -24,6 +24,7 @@ The build jar is put in the target directory and needs to be moved to the main d
 
 ## Configuration
 
+UNDER CONSTRUCTION
 
 # Contributing
 
