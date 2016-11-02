@@ -6,7 +6,7 @@ This is a visualization tool for the dtech-demo.  It subscribes to the MQTT brok
 
 # Installing / Getting started
 
-  Refer to [Wiki](https://github.com/openfmb/dtech-demo-2016/wiki) for information on DTech Demo. 
+Refer to [Wiki](https://github.com/openfmb/dtech-demo-2016/wiki/Running-the-Simulation) for information on DTech Demo on running and visualizing the dtech demo. 
 
 ```shell
 java -jar openfmb-hmi-0.0.5-SNAPSHOT-jar-with-dependencies.jar
