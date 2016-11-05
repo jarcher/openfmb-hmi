@@ -24,7 +24,7 @@ The build jar is put in the target directory and needs to be moved to the main d
 
 ## Configuration
 
-The configuration for the HMI is contained in the [hmi.proprities](https://github.com/openfmb/openfmb-hmi/blob/master/hmi.properties) file.  
+The configuration for the HMI is contained in the [hmi.proprities](https://github.com/openfmb/openfmb-hmi/blob/master/hmi.properties) file. In the file the Recloser and Battery are defined so controls can be issued.  The remaining topics listed are so the hmi can subscription and publish to the simulators.
 
 
 # Contributing
