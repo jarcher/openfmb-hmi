@@ -24,11 +24,12 @@ The build jar is put in the target directory and needs to be moved to the main d
 
 ## Configuration
 
-UNDER CONSTRUCTION
+The configuration for the HMI is contained in the [hmi.proprities](https://github.com/openfmb/openfmb-hmi/blob/master/hmi.properties) file.  
+
 
 # Contributing
 
-{insert authors}
+Daniel Evans, Green Energy Corp
 
 If you'd like to contribute, please fork the repository and use a feature
 branch. Pull requests are warmly welcome.
