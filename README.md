@@ -11,6 +11,9 @@ Refer to [Wiki](https://github.com/openfmb/dtech-demo-2016/wiki/Running-the-Simu
 ```shell
 java -jar openfmb-hmi-0.0.5-SNAPSHOT-jar-with-dependencies.jar
 ```
+## Dependencies
+
+Please refer to the Wiki pages for the [Demonstration](https://github.com/openfmb/turnkey-dtech-demo-2016/wiki/Simulation-Demonstration) and [Prerequisites](https://github.com/openfmb/turnkey-dtech-demo-2016/wiki/Simulation-Prerequisites) for the demo and these cooresponding repository projects. 
 
 ## Building
 
